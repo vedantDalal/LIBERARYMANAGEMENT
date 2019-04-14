@@ -10,7 +10,7 @@ from data import *
 DATABASE = 'database1.db'
 
 app = Flask(__name__)
-
+app.secret_key = "myfirstdbkey"
 conn = sqlite3.connect(DATABASE)
 c = conn.cursor()
 #conn.execute('DROP TABLE USER IF EXIST')
@@ -36,6 +36,17 @@ def index():
 def about():
     return render_template('about.html')
 
+class FRB(Form):
+    BOOKID = StringField('BOOKID',[validators.DataRequired()])
+    UID = StringField('UID',[validators.DataRequired()])
+
+@app.route('/frb',methods=['GET','POST'])
+def frb():
+    form3 = FRB(request.form)
+    if session.get('loggedin')==False:
+        return "<script>alert('you are already logged in');window.location='/login'</script>"
+    else:
+        return render_template('frb.html',form=form3)
 
 @app.route('/articles')
 def articles():
@@ -57,8 +68,17 @@ class RegisterForm(Form):
     TYPE = StringField('TYPE',[validators.AnyOf(['1','2','3'])])
     CONFIRM = PasswordField('CONFIRM')
 
+class LoginForm(Form):
+    NAME = StringField('NAME',[validators.Length(min=1,max=20),validators.DataRequired()])
+    PASSWORD=PasswordField('PASSWORD',[
+    validators.DataRequired(),
+    validators.EqualTo('CONFIRM',message='Passwords do not match')
+    ])
+
 @app.route('/register',methods=['GET','POST'])
 def register():
+    if session.get('loggedin'):
+        return "<script>alert('you are already logged in');window.location='/'</script>"
     form = RegisterForm(request.form)
     if request.method == 'POST' and form.validate():
         with sqlite3.connect(DATABASE) as conn:
@@ -71,18 +91,45 @@ def register():
             h = hashlib.md5(actualP.encode())
             ADDRESS = request.form['ADDRESS']
             TYPE = request.form['TYPE']
-            data = cur.execute('SELECT * FROM USER WHERE NAME=? OR PASSWORD=?);',(NAME,h.hexdigest));
+            data = cur.execute('SELECT * FROM USER WHERE NAME=? OR PASSWORD=?;',(NAME,h.hexdigest()))
             data=cur.fetchall()
             if len(data)>0:
-                cur.execute('INSERT INTO USER(NAME,PASSWORD,EMAIL,TYPE,ADDRESS) VALUES(?,?,?,?,?);',(NAME,h.hexdigest(),EMAIL,int(TYPE),ADDRESS))
-                conn.commit()
-                print("dhvanil")
-                return "Yeah You registerend successfull"
-                conn.close()
+                    flash('Name or password already registered')
+                    return render_template('register.html',form=form)
             else:
-                return render_template('register.html',form=form)
+                    cur.execute('INSERT INTO USER(NAME,PASSWORD,EMAIL,TYPE,ADDRESS) VALUES(?,?,?,?,?);',(NAME,h.hexdigest(),EMAIL,int(TYPE),ADDRESS))
+                    conn.commit()
+                    print("dhvanil")
+                    return "Yeah You registerend successfull"
+                    conn.close()
     else:
         return render_template('register.html',form = form)
+
+@app.route('/login',methods=['GET','POST'])
+def login():
+    if session.get('loggedin'):
+        return "<script>alert('You are already loggedin');window.location='/'</script>"
+    else:
+        form2= LoginForm(request.form)
+        if request.method =='POST':
+            with sqlite3.connect(DATABASE) as conn:
+                cur1 = conn.cursor()
+                NAME = request.form['NAME']
+                PASSWORD = request.form['PASSWORD']
+                SALT = '777'
+                actualP = PASSWORD+SALT
+                h = hashlib.md5(actualP.encode())
+                data = cur1.execute('SELECT * FROM USER WHERE NAME=? and PASSWORD = ?;',(NAME,h.hexdigest()))
+                data = cur1.fetchall()
+                if len(data)>0:
+                    session['loggedin']=True
+                    session['name']=NAME
+                    flash('You are successfully logged in')
+                    return redirect(url_for('index'))
+                else:
+                    return render_template('login.html',form=form2)
+        else:
+            return render_template('login.html',form = form2)
 
 if __name__ == '__main__':
     app.run(port=5001,debug = True)
