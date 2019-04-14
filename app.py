@@ -22,7 +22,6 @@ conn.execute('CREATE TABLE IF NOT EXISTS BOOK (BID INTEGER PRIMARY KEY AUTOINCRE
 conn.execute('CREATE TABLE IF NOT EXISTS BORROWS (TID INTEGER PRIMARY KEY AUTOINCREMENT,UID INTEGER NOT NULL ,BID INTEGER NOT NULL,DUE_MONEY INTEGER(1000),ADDRESS VARCHAR(100),FOREIGN KEY(UID) REFERENCES USER(UID),FOREIGN KEY(BID) REFERENCES BOOK(BID) ) ')
 # c.execute('SELECT * FROM blog;')
 
-
 conn.commit()
 print(c.fetchone())
 conn.close()
@@ -40,6 +39,31 @@ class FRB(Form):
     BOOKID = StringField('BOOKID',[validators.DataRequired()])
     UID = StringField('UID',[validators.DataRequired()])
 
+class BOOK(Form):
+    TITLE = StringField('TITLE',[validate.DataRequired()])
+    LANGUAGE =StringField('LANGUAGE',[validate.DataRequired()],)
+    TYPE = StringField('TYPE',[validate.DataRequired()])
+    SHELF = StringField('SHELF',[validate.DataRequired()])
+    AUTHOR = StringField('AUTHOR',[validate.DataRequired()])
+    PUBLISHER = StringField('PUBLISHER',[validate.DataRequired()])
+
+@app.route('/bokreg',methods=['GET','POST'])
+def bokreg():
+    if session.get('loggedin') == False:
+        return "<script>alert('you are NOT logged in');window.location='/'</script>"
+    else
+        form = RegisterForm(request.form)
+        if request.method == 'POST' and form.validate():
+            with sqlite3.connect(DATABASE) as conn:
+                cur=conn.cursor()
+                TITLE = request.form['TITLE']
+                LANGUAGE = request.form['LANGUAGE']
+                TYPE = request.form['TYPE']
+                SHELF = request.form['SHELF']
+                #here more than one Author can be there we will do it tomorrow
+                AUTHOR = request.form['AUTHOR']
+                PUBLISHER = request.form['PUBLISHER']
+
 @app.route('/frb',methods=['GET','POST'])
 def frb():
     form3 = FRB(request.form)
@@ -47,6 +71,14 @@ def frb():
         return "<script>alert('you are already logged in');window.location='/login'</script>"
     else:
         return render_template('frb.html',form=form3)
+
+@app.route('/logout',methods=['GET','POST'])
+def logout():
+    print(session.keys())
+    session.clear()
+    print(session.keys())
+    flash('Logged out')
+    return redirect(url_for('index'))
 
 @app.route('/articles')
 def articles():
